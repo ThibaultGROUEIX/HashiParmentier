@@ -11,141 +11,236 @@ import os
 
 
 def main(path="./input/"):
+    # PARSER
     global_args= EasyDict()
-    street_names = []
-    street_start = []
-    street_end = []
-    street_time = []
-    street_to_index = {}
-    index_to_street = {}
 
-    car_num_street = []
-    car_streets = []
-    car_cost = []
-    car_length = []
-
-    intersection = {}
-    intersection_dict = {}
-    intersection_start_dict = {}
-    intersection_usage = {}
-
+    contributors_name = []
+    contributors_num_skills = []
+    contributors_skills = {}
+    project_name = []
+    project_duration = []
+    project_score = []
+    project_date = []
+    project_num_roles = []
+    project_roles = {}
     line = 0
+    skill_list = []
+    skill_to_contributor = {}
+    skill_level_to_contributor = {}
+    num_project_per_people =  {}
+
     with open(path, 'r') as file_reader:
         first_args_list = file_reader.readline().split(' ')
 
-        global_args["duration"] = int(first_args_list[0])
-        global_args["num_intersection"] = int(first_args_list[1])
-        global_args["num_street"] = int(first_args_list[2])
-        global_args["num_car"] = int(first_args_list[3])
-        global_args["bonus"] = int(first_args_list[4])
-        for i in range(global_args["num_street"]):
-            next_args = file_reader.readline().split(' ')
-            street_start.append(int(next_args[0]))
-            street_end.append(int(next_args[1]))
-            street_names.append(next_args[2])
-            street_time.append(int(next_args[3]))
-            street_to_index[next_args[2]] = i
-            index_to_street[i] = next_args[2]
-            if int(next_args[1]) in intersection.keys():
-                intersection[int(next_args[1])].append(i)
-                intersection_dict[int(next_args[1])][i] = 0
-                intersection_start_dict[int(next_args[1])][i] = 0
-                intersection_usage[int(next_args[1])] = 0
-            else:
-                intersection[int(next_args[1])] = [i]
-                intersection_dict[int(next_args[1])] = {}
-                intersection_start_dict[int(next_args[1])] = {}
-                intersection_dict[int(next_args[1])][i] = 0
-                intersection_start_dict[int(next_args[1])][i] = 0
-                intersection_usage[int(next_args[1])] = 0
+        global_args["number_of_contributor"] = int(first_args_list[0])
+        global_args["number_of_project"] = int(first_args_list[1])
+
+        for i in range(global_args["number_of_contributor"]):
+            next_args_1 = file_reader.readline().split(' ')
+            contributors_name.append(next_args_1[0])
+            num_project_per_people[next_args_1[0]] = 0
+            contributors_num_skills.append(int(next_args_1[1]))
+            contributors_skills[next_args_1[0]] = {}
+
+            for i in range(int(next_args_1[1])):
+                next_args_2 = file_reader.readline().split(' ')
+                level =  int(next_args_2[1])
+                skill_name = next_args_2[0]
+                if skill_name not in skill_list:
+                    skill_list.append(skill_name)
+                    skill_to_contributor[skill_name] = []
+                    skill_level_to_contributor[skill_name] = {}
+
+                for level_ in range(level+1):
+                    if level_ not in skill_level_to_contributor[skill_name].keys():
+                        skill_level_to_contributor[skill_name][level_] = []
+                skill_level_to_contributor[skill_name][level].append(next_args_1[0]) 
+
+                skill_to_contributor[skill_name].append(next_args_1[0])
+
+                contributors_skills[next_args_1[0]][skill_name] = level
+        
+        for i in range(global_args["number_of_project"]):
+            next_args_1 = file_reader.readline().split(' ')
+            project_name.append(next_args_1[0])
+            project_score.append(int(next_args_1[2]))
+            project_date.append(int(next_args_1[3]))
+            project_num_roles.append(int(next_args_1[4]))
+            project_roles[next_args_1[0]] = []
+            
+            for i in range(int(next_args_1[4])):
+                next_args_2 = file_reader.readline().split(' ')
+                project_roles[next_args_1[0]].append((next_args_2[0],int(next_args_2[1])))
+        ## More data processing
+        ## Skills to people
+
+        ## ALGO
+        number_of_executed_project =  global_args["number_of_project"]
+        from copy import deepcopy
+        project_to_tackle = deepcopy(project_name)
+        _, indices = torch.sort(torch.Tensor(project_date))
+        project_to_tackle = [project_to_tackle[i] for i in indices]
+
+        project_list_in_order = []
+
+        contributors = {}
+        step = 0
+        while len(project_to_tackle) > 0:
+            step += 1
+            if step > len(project_to_tackle):
+                break
+
+            project = project_to_tackle[0]
+            project_to_tackle.remove(project)
+            project_to_tackle.append(project)
+
+            drop_project = False
+            skills = deepcopy(project_roles[project])
+            contributors[project] = deepcopy(skills)
+            people_to_upgrade = []
+            skills_backup = deepcopy(skills)
+            if project=="PhoneUltrav1":
+                a=0
+            while len(skills) > 0:
+                availability = 100000
+                num_item = 0
+                for num, (skill, level) in enumerate(skills):
+                    avail = count_number_available_dude(skill_level_to_contributor[skill], level)
+                    if avail < availability:
+                        availability = avail
+                        num_item = num
+                
+                skill, level = skills[num_item]
+                num_item_backup = contributors[project].index((skill, level))
 
 
-        car_length = np.zeros(global_args["num_car"])
+                if not drop_project:
+                    level_to_contributor = skill_level_to_contributor[skill]
+                    
+                    if level not in level_to_contributor.keys():
+                        # Skip this project (for now :) 
+                        drop_project = True
+                        break
+                    else:
+                        # Pick
+                        list_of_potential_contributors = []
+                        level_max = max(level_to_contributor.keys())
+                        candidate_for_mentorring = level_to_contributor[level-1]
 
-        num_intersection = len(intersection.keys())
-        for i in range(global_args["num_car"]):
-            next_args = file_reader.readline().split(' ')
-            car_num_street.append(int(next_args[0]))
-            street_path = [street_to_index[next_args[j+1].rstrip("\n")] for j in range(len(next_args)-1)]
-            length = 0
-            street_end_0 = street_end[street_path[0]]
-            intersection_start_dict[street_end_0][street_path[0]] = intersection_start_dict[street_end_0][street_path[0]] + 1
-            for street in street_path:
-                street_end_ = street_end[street]
-                intersection_dict[street_end_][street] = intersection_dict[street_end_][street] + 1
-                intersection_usage[street_end_] = intersection_usage[street_end_] + 1
-                length = length + street_time[street]
+                        for i in range(level,level_max+1):
+                            list_of_potential_contributors += level_to_contributor[i]
+                        
+                        found_contributor = False
+                        #filter 1
+                        list_of_potential_contributors_2 = []
+                        for contrib_potential in list_of_potential_contributors:
+                            if not contrib_potential in contributors[project]:
+                                list_of_potential_contributors_2.append(contrib_potential)
+                        
+                        found_mentor = False
+                        for mentor in list_of_potential_contributors_2:
+                            if found_mentor:
+                                continue
+                            item_mentor = 0
+                            for iiiii, (skill__, level__) in enumerate(skills):
+                                if iiiii== num_item:
+                                    continue
+                                if skill__ in contributors_skills[mentor]:
+                                    if contributors_skills[mentor][skill__] >=level__:
+                                        found_mentor = True
+                                        mentor = mentor
+                                        skill_mentor = skill__
+                                        level_mentor = level__
+                                        item_mentor = iiiii
+                                        break
+                        
+                        if found_mentor and len(candidate_for_mentorring)>0:
+                            found_contributor = True
+                            item_mentor_back = contributors[project].index((skill_mentor, level_mentor))
 
-            car_length[i] = length
-            car_streets.append(street_path)
+                            if num_item>=item_mentor:
+                                print(num_item, item_mentor)
+                                skills.pop(num_item)
+                                skills.pop(item_mentor)
+                            else:
+                                print(item_mentor)
+                                skills.pop(item_mentor)
+                                skills.pop(num_item)
 
-        # car cost
-        # car_cost = np.zeros(len(car_num_street))
-        #
-        # for i in range(len(car_num_street)):
-        #     car_num_street_ = car_num_street[i]
-        #     car_streets_ = car_streets[i]
-        #     for street in car_streets_:
-        #         street_end_ = street_end[street]
-        #         if intersection_dict[street_end_][street] < 2 and intersection_usage[street_end_] > 25:
-        #             car_cost[i] = car_cost[i] + 1
-        # # remove from intersection_dict
-        # number_of_car_removed = 0
-        # for i in range(len(car_num_street)):
-        #     if car_cost[i] > 21 or car_length[i] > 0.99*global_args["duration"]:
-        #         number_of_car_removed = number_of_car_removed + 1
-        #         for street in car_streets[i]:
-        #             street_end_ = street_end[street]
-        #             intersection_dict[street_end_][street] = intersection_dict[street_end_][street] - 1
-        # print(f"number_of_car_removed {number_of_car_removed}")
+                            num_project_per_people[candidate_for_mentorring[0]]+=1
+                            
+                            contributors[project][num_item_backup] = candidate_for_mentorring[0]
+                            contributors[project][item_mentor_back] = mentor
+                            try:
+                                if contributors_skills[mentor][skill_mentor] == level_mentor:
+                                    people_to_upgrade.append((mentor, skill_mentor))
+                            except:
+                                a=0
+                            people_to_upgrade.append((candidate_for_mentorring[0], skill))
+
+
+                        else:
+                            list_num_project = []
+                            if len(list_of_potential_contributors_2)>0:
+                                for contrib_potential in list_of_potential_contributors_2:
+                                    list_num_project.append(num_project_per_people[contrib_potential])
+
+                                index = torch.argmin(torch.Tensor(list_num_project))
+                                # contrib_potential = list_of_potential_contributors_2[index.int().item()]
+                                contrib_potential = list_of_potential_contributors_2[0]
+                                found_contributor = True
+                                skills.pop(num_item)
+                                num_project_per_people[contrib_potential]+=1
+                                contributors[project][num_item_backup] = contrib_potential
+                                if contributors_skills[contrib_potential][skill] == level:
+                                    people_to_upgrade.append((contrib_potential, skill))
+                        if not found_contributor:
+                            drop_project = True
+                            break
+
+
+            if not drop_project:
+                step = 0
+
+                # Upgrade contributors skills.
+                for people, skill in people_to_upgrade:
+                    old_level = contributors_skills[people][skill]
+                    contributors_skills[people][skill] += 1
+                    skill_level_to_contributor[skill][old_level].remove(people)
+                    if not old_level+1 in skill_level_to_contributor[skill].keys():
+                        skill_level_to_contributor[skill][old_level+1] = []
+                    skill_level_to_contributor[skill][old_level+1].append(people)
+                project_to_tackle.remove(project)
+                project_list_in_order.append(project)
 
         with open(path[:-4] + "_output.txt", 'w') as file_reader:
-            file_reader.write(f"{num_intersection}\n")
+            file_reader.write(f"{len(project_list_in_order)}\n")
 
-            for i in range(num_intersection):
-                file_reader.write(f"{i}\n")
+            for i, name in enumerate(project_list_in_order):
+                file_reader.write(f"{name}\n")
+                contrib = contributors[name]
+                my_str = (" ").join(contrib)
+                file_reader.write(f"{my_str}\n")
 
-                total_use = 0
-                for street in intersection_dict[i]:
-                    total_use = total_use + intersection_dict[i][street]
+    print("done")
 
-
-                if intersection_dict[i].keys().__len__() == 0 or total_use==0:
-                    file_reader.write("1\n")
-                    key = intersection[i][0]
-                    street_name = index_to_street[key]
-                    file_reader.write(f"{street_name} 1 \n")
-                else:
-                    if total_use == 0:
-                        print("not possible")
-                        file_reader.write(f"{street_name} 1 \n")
-
-                    else:
-                        num_schedule = 0
-                        for key in intersection[i]:
-                            if intersection_dict[i][key] > 0:
-                                num_schedule = num_schedule + 1
-
-                        file_reader.write(f"{num_schedule}\n")
-                        local_dict = {k: v for k, v in sorted(intersection_start_dict[i].items(), key=lambda item: -item[1])}
-                        for key in local_dict.keys():
-                            if intersection_dict[i][key] > 0:
-                                street_name = index_to_street[key]
-                                value = 5
-                                time = value*intersection_dict[i][key]/total_use
-                                if time < 1:
-                                    file_reader.write(
-                                        f"{street_name} 1\n")
-                                else:
-                                    file_reader.write(f"{street_name} {int(value*intersection_dict[i][key]/total_use)} \n")
-
-        print("done")
-
+def count_number_available_dude(skill_level_to_contributor_skill, level):
+    level_max = max(skill_level_to_contributor_skill.keys())
+    reutrn_val = 0
+    for i in range(level, level_max+1):
+        reutrn_val += len(skill_level_to_contributor_skill[i])
+    return reutrn_val
 
 if __name__ == '__main__':
-    main("./input/b.txt")
-    main("./input/a.txt")
-    main("./input/c.txt")
-    main("./input/d.txt")
-    main("./input/e.txt")
-    main("./input/f.txt")
+    main("./input/f_find_great_mentors.in.txt")
+    main("./input/a_an_example.in.txt")
+    main("./input/b_better_start_small.in.txt")
+    main("./input/c_collaboration.in.txt")
+    main("./input/d_dense_schedule.in.txt")
+    main("./input/e_exceptional_skills.in.txt")
+
+
+
+
+
+
