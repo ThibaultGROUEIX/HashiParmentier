@@ -1,7 +1,5 @@
 import os
-
-from street_car import Street, Car
-
+import np
 
 def read_input(path="../input/"):
     input_args = dict()
